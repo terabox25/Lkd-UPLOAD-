@@ -2,7 +2,7 @@ import aiohttp
 import aiofiles
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
-import telegram  # Import the telegram module to handle errors like telegram.error.TimedOut
+import telegram
 
 # Asynchronous download function
 async def download_file(url, file_name):
@@ -33,7 +33,7 @@ async def handle_message(update: Update, context):
         if file_path:
             await update.message.reply_text("Uploading the file to Telegram...")
             try:
-                await update.message.reply_document(document=open(file_path, 'rb'), timeout=120)
+                await update.message.reply_document(document=open(file_path, 'rb'))
             except telegram.error.TimedOut:
                 await update.message.reply_text("Failed to upload the file due to a timeout.")
         else:
@@ -43,7 +43,11 @@ async def handle_message(update: Update, context):
 
 # Main function to start the bot
 def main():
+    # Set default request timeout when building the application
     application = Application.builder().token("5645711998:AAE8oAHzKi07iqcydKPnuFjzknlVa2MxxUQ").build()
+
+    # Set default timeout in the application (you can adjust the value)
+    application.bot.defaults = telegram.ext.Defaults(timeout=120)
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
