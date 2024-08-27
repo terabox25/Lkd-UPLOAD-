@@ -37,14 +37,13 @@ async def handle_message(update: Update, context):
         await update.message.reply_text("Please send a valid direct download link.")
 
 # Main function to start the bot
-async def main():
+def main():
     application = Application.builder().token("YOUR_TELEGRAM_BOT_TOKEN").build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    await application.run_polling()
+    application.run_polling()
 
 if __name__ == "__main__":
-    import asyncio
-    asyncio.run(main())
+    main()
