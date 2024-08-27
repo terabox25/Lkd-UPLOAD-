@@ -2,6 +2,7 @@ import aiohttp
 import aiofiles
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
+import telegram  # Import the telegram module to handle errors like telegram.error.TimedOut
 
 # Asynchronous download function
 async def download_file(url, file_name):
@@ -42,7 +43,7 @@ async def handle_message(update: Update, context):
 
 # Main function to start the bot
 def main():
-    application = Application.builder().token("5725026746:AAEdc1JgPoD_Pkgti_PQGdZJ0WqyCKGYrFk").build()
+    application = Application.builder().token("YOUR_TELEGRAM_BOT_TOKEN").build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
