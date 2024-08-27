@@ -1,4 +1,4 @@
-import requests
+Import  requests
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
@@ -38,7 +38,7 @@ async def handle_message(update: Update, context):
 
 # Main function to start the bot
 def main():
-    application = Application.builder().token("YOUR_TELEGRAM_BOT_TOKEN").build()
+    application = Application.builder().token("5645711998:AAE8oAHzKi07iqcydKPnuFjzknlVa2MxxUQ").build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
