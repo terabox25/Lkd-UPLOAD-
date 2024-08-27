@@ -3,6 +3,7 @@ import aiofiles
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 import telegram
+from telegram.request import HTTPXRequest  # Import the HTTPXRequest for setting custom timeout
 
 # Asynchronous download function
 async def download_file(url, file_name):
@@ -43,11 +44,11 @@ async def handle_message(update: Update, context):
 
 # Main function to start the bot
 def main():
-    # Set default request timeout when building the application
-    application = Application.builder().token("5645711998:AAE8oAHzKi07iqcydKPnuFjzknlVa2MxxUQ").build()
+    # Set a custom timeout for requests
+    request = HTTPXRequest(connect_timeout=120, read_timeout=120)
 
-    # Set default timeout in the application (you can adjust the value)
-    application.bot.defaults = telegram.ext.Defaults(timeout=120)
+    # Build the application with custom request settings
+    application = Application.builder().token("5645711998:AAE8oAHzKi07iqcydKPnuFjzknlVa2MxxUQ").request(request).build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
