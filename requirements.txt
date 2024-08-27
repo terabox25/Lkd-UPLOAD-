@@ -2,3 +2,4 @@ python-telegram-bot
 requests
 aiohttp
 aiofiles
+yt-dlp
