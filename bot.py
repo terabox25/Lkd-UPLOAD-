@@ -1,19 +1,20 @@
-import aiohttp
-import aiofiles
+import os
+from yt_dlp import YoutubeDL
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 import telegram
 from telegram.request import HTTPXRequest  # Import the HTTPXRequest for setting custom timeout
 
-# Asynchronous download function
-async def download_file(url, file_name):
-    async with aiohttp.ClientSession() as session:
-        async with session.get(url) as response:
-            if response.status == 200:
-                async with aiofiles.open(file_name, 'wb') as f:
-                    await f.write(await response.read())
-                return file_name
-            return None
+# Function to download video using yt-dlp
+def download_video(url, file_name):
+    ydl_opts = {
+        'outtmpl': file_name,
+        'format': 'best',  # You can change the format here (e.g., 'bestaudio' for audio only)
+    }
+    with YoutubeDL(ydl_opts) as ydl:
+        ydl.download([url])
+
+    return file_name
 
 # Start command handler
 async def start(update: Update, context):
@@ -26,19 +27,26 @@ async def handle_message(update: Update, context):
     # Validate if the text is a URL
     if text.startswith("http://") or text.startswith("https://"):
         await update.message.reply_text("Downloading the file...")
-        file_name = "downloaded_file"
-        
-        # Download the file
-        file_path = await download_file(text, file_name)
 
-        if file_path:
-            await update.message.reply_text("Uploading the file to Telegram...")
-            try:
-                await update.message.reply_document(document=open(file_path, 'rb'))
-            except telegram.error.TimedOut:
-                await update.message.reply_text("Failed to upload the file due to a timeout.")
-        else:
-            await update.message.reply_text("Failed to download the file.")
+        file_name = "downloaded_video"  # Default filename
+        try:
+            # Download the video using yt-dlp
+            file_path = download_video(text, file_name)
+
+            # Check file size
+            file_size = os.path.getsize(file_path)
+            max_file_size = 2 * 1024 * 1024 * 1024  # 2 GB
+
+            if file_size > max_file_size:
+                await update.message.reply_text("The file is too large to upload to Telegram (max size is 2 GB).")
+            else:
+                await update.message.reply_text("Uploading the file to Telegram...")
+                try:
+                    await update.message.reply_document(document=open(file_path, 'rb'))
+                except telegram.error.TimedOut:
+                    await update.message.reply_text("Failed to upload the file due to a timeout.")
+        except Exception as e:
+            await update.message.reply_text(f"Failed to download the file: {e}")
     else:
         await update.message.reply_text("Please send a valid direct download link.")
 
