@@ -1,16 +1,17 @@
-import requests
+import aiohttp
+import aiofiles
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters
 
-# Download file from direct link
-def download_file(url, file_name):
-    response = requests.get(url, stream=True)
-    if response.status_code == 200:
-        with open(file_name, 'wb') as file:
-            for chunk in response.iter_content(1024):
-                file.write(chunk)
-        return file_name
-    return None
+# Asynchronous download function
+async def download_file(url, file_name):
+    async with aiohttp.ClientSession() as session:
+        async with session.get(url) as response:
+            if response.status == 200:
+                async with aiofiles.open(file_name, 'wb') as f:
+                    await f.write(await response.read())
+                return file_name
+            return None
 
 # Start command handler
 async def start(update: Update, context):
@@ -26,11 +27,14 @@ async def handle_message(update: Update, context):
         file_name = "downloaded_file"
         
         # Download the file
-        file_path = download_file(text, file_name)
+        file_path = await download_file(text, file_name)
 
         if file_path:
             await update.message.reply_text("Uploading the file to Telegram...")
-            await update.message.reply_document(document=open(file_path, 'rb'))
+            try:
+                await update.message.reply_document(document=open(file_path, 'rb'), timeout=120)
+            except telegram.error.TimedOut:
+                await update.message.reply_text("Failed to upload the file due to a timeout.")
         else:
             await update.message.reply_text("Failed to download the file.")
     else:
@@ -38,7 +42,7 @@ async def handle_message(update: Update, context):
 
 # Main function to start the bot
 def main():
-    application = Application.builder().token("5645711998:AAE8oAHzKi07iqcydKPnuFjzknlVa2MxxUQ").build()
+    application = Application.builder().token("5725026746:AAEdc1JgPoD_Pkgti_PQGdZJ0WqyCKGYrFk").build()
     
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
