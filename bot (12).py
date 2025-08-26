@@ -1037,85 +1037,54 @@ Tip: CSV columns â†’ "Question, Option A, Option B, Option C, Option D, Ans
     )
 
 # ---------------------- APPLICATION ----------------------
-
 def build_app() -> Application:
-
     app = Application.builder().token(BOT_TOKEN).build()
 
     # Admin conversation
-
     admin_conv = ConversationHandler(
-
         entry_points=[CommandHandler("addaicsv", addaicsv_start)],
-
         states={
-
             A_SUBJECT: [CallbackQueryHandler(addaicsv_cb)],
-
             A_SUBSUB: [CallbackQueryHandler(addaicsv_cb)],
-
             A_TOPIC: [CallbackQueryHandler(addaicsv_cb)],
-
             A_TEST: [CallbackQueryHandler(addaicsv_cb)],
-
             A_ADD_TEXT: [MessageHandler(filters.TEXT & ~filters.COMMAND, addaicsv_text)],
-
             A_WAIT_CSV: [MessageHandler(filters.Document.MimeType("text/csv") | filters.Document.FileExtension("csv"), addaicsv_csv)],
-
         },
-
         fallbacks=[CommandHandler("cancel", addaicsv_cancel)],
-
         name="admin_addaicsv",
-
         persistent=False,
-
         allow_reentry=True,
-
     )
 
     # User conversation
-
     user_conv = ConversationHandler(
-
         entry_points=[CommandHandler("aiquiz", aiquiz_start)],
-
         states={
-
             U_SUBJECT: [CallbackQueryHandler(aiquiz_cb)],
-
             U_SUBSUB: [CallbackQueryHandler(aiquiz_cb)],
-
             U_TOPIC: [CallbackQueryHandler(aiquiz_cb)],
-
             U_TEST: [CallbackQueryHandler(aiquiz_cb)],
-
         },
-
         fallbacks=[CommandHandler("cancel", cancel_common)],
-
         name="user_aiquiz",
-
         persistent=False,
-
         allow_reentry=True,
-
     )
 
-app.add_handler(CallbackQueryHandler(show_answers_callback, pattern="^show_answers$")) app.add_handler(CommandHandler("start", start_cmd))
-
+    # ✅ Sab handlers yahin add karo
+    app.add_handler(CallbackQueryHandler(show_answers_callback, pattern="^show_answers$"))
+    app.add_handler(CommandHandler("start", start_cmd))
     app.add_handler(admin_conv)
-
     app.add_handler(user_conv)
 
     return app
 
+
 if __name__ == "__main__":
-
     if BOT_TOKEN == "PUT-YOUR-TOKEN-HERE" or not BOT_TOKEN:
-
         raise SystemExit("Please set BOT_TOKEN env var.")
 
     application = build_app()
-
     application.run_polling(close_loop=False)
+
