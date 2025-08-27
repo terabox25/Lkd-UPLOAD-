@@ -314,9 +314,10 @@ async def send_mcqs_from_csv(update: Update, context: ContextTypes.DEFAULT_TYPE,
     )
 
     # Send polls
+    # Send polls
     for i, m in enumerate(mcqs[:20]):
         try:
-            await context.bot.send_poll(
+            poll_msg = await context.bot.send_poll(
                 chat_id=chat_id,
                 question=f"Q{i+1}. {m.question}",
                 options=m.options,
@@ -326,17 +327,13 @@ async def send_mcqs_from_csv(update: Update, context: ContextTypes.DEFAULT_TYPE,
                 explanation=None,  # Explanation abhi mat do
                 allows_multiple_answers=False,
             )
+            # Map poll_id to MCQ index
+            context.bot_data.setdefault("poll_map", {})[poll_msg.poll.id] = i
+            m.poll_id = poll_msg.poll.id  # store inside object for later
         except Exception as e:
             logger.exception("Failed to send poll %s: %s", i + 1, e)
         await asyncio.sleep(1.2)
-
-    # Placeholder message (will update later)
-    msg = await context.bot.send_message(
-        chat_id=chat_id,
-        text="⚡ Jaise hi aap sabhi MCQs attempt kar lenge, aapka score yahi dikhaya jayega."
-    )
-    context.chat_data["score_message"] = msg
-
+        
 async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE):
     answer = update.poll_answer
     mcqs = context.chat_data.get("last_mcqs")
@@ -344,30 +341,29 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
         return
 
     user_id = answer.user.id
-    qid = answer.poll_id
+    poll_id = answer.poll_id
     chosen = answer.option_ids
+
+    # Poll mapping
+    poll_map = context.bot_data.get("poll_map", {})
+    if poll_id not in poll_map:
+        return
+    q_index = poll_map[poll_id]
 
     # Save response
     if user_id not in context.chat_data["responses"]:
         context.chat_data["responses"][user_id] = {}
 
-    context.chat_data["responses"][user_id][qid] = chosen
+    context.chat_data["responses"][user_id][q_index] = chosen
 
     # Check if user completed all
     total_mcqs = context.chat_data["total_mcqs"]
     if len(context.chat_data["responses"][user_id]) >= total_mcqs:
         # Calculate score
-        score = 0
-        for idx, m in enumerate(mcqs[:total_mcqs]):
-            # compare chosen option with correct_index
-            for poll in context.bot_data.get("polls", {}).values():
-                if poll["id"] == qid:
-                    pass  # (mapping system banaoge poll_id -> MCQ index)
-
-        # For now assume score count kiya
         score = sum(
-            1 for idx, m in enumerate(mcqs[:total_mcqs])
-            if context.chat_data["responses"][user_id].get(m.poll_id) == [m.correct_index]
+            1
+            for idx, m in enumerate(mcqs[:total_mcqs])
+            if context.chat_data["responses"][user_id].get(idx) == [m.correct_index]
         )
 
         # Update placeholder message
@@ -381,7 +377,7 @@ async def handle_poll_answer(update: Update, context: ContextTypes.DEFAULT_TYPE)
             text=f"✅ Aapka Score: <b>{score}/{total_mcqs}</b>\n\nAb aap Show Answers button dabakar explanations dekh sakte ho.",
             parse_mode=ParseMode.HTML,
             reply_markup=reply_markup
-    )
+          )
 
 # ---- Callback Handler ----
 async def show_answers_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
