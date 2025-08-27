@@ -287,66 +287,96 @@ def parse_csv(file_path: Path) -> List[MCQ]:
 
 
 # ---- MCQ Sending Function ----
-async def send_mcqs_from_csv(
-    update: Update,
-    context: ContextTypes.DEFAULT_TYPE,
-    csv_path: Path,
-    destination_chat_id: Optional[int] = None,
-) -> None:
-    chat_id = destination_chat_id or (update.effective_chat.id if update.effective_chat else None)
-    if chat_id is None:
-        return
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
 
-    try:
-        mcqs = parse_csv(csv_path)
-    except Exception as e:
-        await context.bot.send_message(chat_id=chat_id, text=f"❌ CSV error: {e}", protect_content=True)
-        return
+# 🔹 User-wise quiz session store
+user_quiz_sessions = {}
 
-    if not mcqs:
-        await context.bot.send_message(chat_id=chat_id, text="CSV me koi valid MCQ nahi mila.", protect_content=True)
-        return
 
-    # Save MCQs in user_data for later use
-    context.user_data["last_mcqs"] = mcqs
+# ========================
+# 1. Function to send MCQs
+# ========================
+async def send_mcqs_from_csv(update: Update, context: ContextTypes.DEFAULT_TYPE, mcqs: list):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
 
-    await context.bot.send_message(
+    # Session create
+    user_quiz_sessions[user_id] = {
+        "total": len(mcqs),
+        "correct": 0,
+        "pending_polls": set(),
+        "result_message_id": None
+    }
+
+    # Send all polls
+    for idx, mcq in enumerate(mcqs, start=1):
+        question = f"Q{idx}. {mcq['Question']}"
+        options = [mcq["Option A"], mcq["Option B"], mcq["Option C"], mcq["Option D"]]
+
+        poll_message = await context.bot.send_poll(
+            chat_id=chat_id,
+            question=question,
+            options=options,
+            type="quiz",
+            correct_option_id=ord(mcq["Answer"].upper()) - 65,  # A=0, B=1, C=2, D=3
+            is_anonymous=False,
+            explanation=mcq.get("Description", "")
+        )
+
+        # Save poll id for tracking
+        user_quiz_sessions[user_id]["pending_polls"].add(poll_message.poll.id)
+
+    # 🔹 Last message as placeholder
+    result_msg = await context.bot.send_message(
         chat_id=chat_id,
-        text=f"▶️ Starting quiz from: <b>{csv_path.stem}</b>",
-        parse_mode=ParseMode.HTML,
-        protect_content=True,
+        text="⚠️ कृपया पहले सभी MCQ attempt करें। जब आप पूरे complete कर लेंगे, यहाँ आपका score दिखाया जाएगा।"
     )
 
-    limit = min(20, len(mcqs))
-    for i in range(limit):
-        m = mcqs[i]
-        try:
-            await context.bot.send_chat_action(chat_id=chat_id, action=ChatAction.TYPING)
-            await context.bot.send_poll(
-                chat_id=chat_id,
-                question=f"Q{i+1}. {m.question}",
-                options=m.options,
-                type="quiz",
-                correct_option_id=m.correct_index,
-                is_anonymous=False,
-                explanation=m.description[:200],
-                allows_multiple_answers=False,
-                protect_content=True,
-            )
-        except Exception as e:
-            logger.exception("Failed to send poll %s: %s", i + 1, e)
-        await asyncio.sleep(1.2)
+    # Save result message id
+    user_quiz_sessions[user_id]["result_message_id"] = result_msg.message_id
 
-    # Send quiz complete with button
-    keyboard = [[InlineKeyboardButton("📑 Show Answers", callback_data="show_answers")]]
-    reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await context.bot.send_message(
-        chat_id=chat_id,
-        text="✅ Quiz complete. Keep practicing!",
-        reply_markup=reply_markup,
-        protect_content=True,
-    )
+
+# ========================
+# 2. Poll Handler
+# ========================
+async def poll_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    poll = update.poll
+
+    # Find which user session this poll belongs to
+    for user_id, session in user_quiz_sessions.items():
+        if poll.id in session["pending_polls"]:
+            # Remove from pending
+            session["pending_polls"].discard(poll.id)
+
+            # ✅ Check if answer is correct
+            for option in poll.options:
+                if option.voter_count > 0 and option.correct:  # user selected correct one
+                    session["correct"] += 1
+                    break
+
+            # If all polls attempted
+            if not session["pending_polls"]:
+                chat_id = update.effective_chat.id if update.effective_chat else None
+                if chat_id:
+                    # Prepare final text
+                    result_text = f"✅ आपने सभी {session['total']} प्रश्न attempt कर लिए!\n\n" \
+                                  f"📊 आपका Score: {session['correct']} / {session['total']}"
+
+                    # Inline button for answers
+                    keyboard = InlineKeyboardMarkup([
+                        [InlineKeyboardButton("📑 Show Answers", callback_data="show_answers")]
+                    ])
+
+                    # Update the placeholder message
+                    await context.bot.edit_message_text(
+                        chat_id=chat_id,
+                        message_id=session["result_message_id"],
+                        text=result_text,
+                        reply_markup=keyboard
+                    )
+            break
 
 
 # ---- Callback Handler ----
