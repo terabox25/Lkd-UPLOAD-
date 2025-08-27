@@ -1,30 +1,17 @@
-import os, csv
-from config import QUIZ_ROOT, MAX_MCQS
-from telegram import Poll
-
-def list_subjects():
-    return os.listdir(QUIZ_ROOT) if os.path.exists(QUIZ_ROOT) else []
-
-def list_subsubjects(subject):
-    path = f"{QUIZ_ROOT}/{subject}"
-    return os.listdir(path) if os.path.exists(path) else []
-
-def list_topics(subject, subsub):
-    path = f"{QUIZ_ROOT}/{subject}/{subsub}"
-    return os.listdir(path) if os.path.exists(path) else []
-
-def list_tests(subject, subsub, topic):
-    path = f"{QUIZ_ROOT}/{subject}/{subsub}/{topic}"
-    return [f[:-4] for f in os.listdir(path) if f.endswith(".csv")]
-
-
-
+import asyncio
+import logging
+from pathlib import Path
+from typing import Optional
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode, ChatAction
 from telegram.ext import ContextTypes, CallbackQueryHandler
 
+from helpers.csv_parser import parse_csv
+
+logger = logging.getLogger(__name__)
+
 # ---- MCQ Sending Function ----
-async def send_csv_as_quiz(
+async def send_mcqs_from_csv(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     csv_path: Path,
@@ -96,7 +83,7 @@ async def show_answers_callback(update: Update, context: ContextTypes.DEFAULT_TY
         await query.message.reply_text("❌ No MCQs found to show answers.", protect_content=True)
         return
 
-    # Prepare formatted tex
+    # Prepare formatted text
     text_blocks = []
     for i, m in enumerate(mcqs[:20], start=1):
         ans_letter = "ABCD"[m.correct_index]
@@ -110,3 +97,8 @@ async def show_answers_callback(update: Update, context: ContextTypes.DEFAULT_TY
     final_text = "\n".join(text_blocks)
 
     await query.message.reply_text(final_text, parse_mode=ParseMode.HTML, protect_content=True)
+
+
+# Register callback
+def register(application):
+    application.add_handler(CallbackQueryHandler(show_answers_callback, pattern="^show_answers$"))
