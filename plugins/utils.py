@@ -10,6 +10,28 @@ from helpers.csv_parser import parse_csv
 
 logger = logging.getLogger(__name__)
 
+import os, csv
+from config import QUIZ_ROOT, MAX_MCQS
+from telegram import Poll
+
+def list_subjects():
+    return os.listdir(QUIZ_ROOT) if os.path.exists(QUIZ_ROOT) else []
+
+def list_subsubjects(subject):
+    path = f"{QUIZ_ROOT}/{subject}"
+    return os.listdir(path) if os.path.exists(path) else []
+
+def list_topics(subject, subsub):
+    path = f"{QUIZ_ROOT}/{subject}/{subsub}"
+    return os.listdir(path) if os.path.exists(path) else []
+
+def list_tests(subject, subsub, topic):
+    path = f"{QUIZ_ROOT}/{subject}/{subsub}/{topic}"
+    return [f[:-4] for f in os.listdir(path) if f.endswith(".csv")]
+
+
+
+
 # ---- MCQ Sending Function ----
 async def send_mcqs_from_csv(
     update: Update,
