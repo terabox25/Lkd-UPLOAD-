@@ -33,7 +33,7 @@ def list_tests(subject, subsub, topic):
 
 
 # ---- MCQ Sending Function ----
-async def send_mcqs_from_csv(
+async def send_csv_as_quiz(
     update: Update,
     context: ContextTypes.DEFAULT_TYPE,
     csv_path: Path,
