@@ -269,10 +269,10 @@ async def show_answers_callback(update: Update, context: ContextTypes.DEFAULT_TY
             final_text = "\n".join(text_blocks)
             # send to the user (private)
             try:
-                await context.bot.send_message(chat_id=owner_id, text=final_text, parse_mode=ParseMode.HTML)
+                await send_long_message(context.bot, owner_id, final_text, ParseMode.HTML)
             except Exception:
                 # fallback to answering where clicked
-                await query.message.reply_text(final_text, parse_mode=ParseMode.HTML)
+                await send_long_message(context.bot, query.message.chat_id, final_text, ParseMode.HTML)
             found = True
             break
 
